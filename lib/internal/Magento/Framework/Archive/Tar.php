@@ -402,6 +402,15 @@ class Tar extends \Magento\Framework\Archive\AbstractArchive implements \Magento
             $currentFile = $destination . $header['name'];
             $dirname = dirname($currentFile);
 
+            if (!$this->isPathInDestination($currentFile, $destination)) {
+                throw new \Magento\Framework\Exception\LocalizedException(
+                    new \Magento\Framework\Phrase(
+                        'Cannot extract "%1": path is outside of the extraction directory',
+                        [$header['name']]
+                    )
+                );
+            }
+
             if (in_array($header['type'], ["0", chr(0), ''])) {
                 if (!file_exists($dirname)) {
                     $mkdirResult = @mkdir($dirname, 0777, true);
@@ -427,11 +436,57 @@ class Tar extends \Magento\Framework\Archive\AbstractArchive implements \Magento
                 }
                 $list[] = $currentFile . '/';
             } elseif ($header['type'] == '2') {
+                $linkTarget = $header['symlink'] !== '' && $header['symlink'][0] === '/'
+                    ? $header['symlink']
+                    : $dirname . '/' . $header['symlink'];
                 //we do not interrupt unpack process if symlink creation failed as symlinks are not so important
-                @symlink($header['symlink'], $currentFile);
+                if ($this->isPathInDestination($linkTarget, $destination)) {
+                    @symlink($header['symlink'], $currentFile);
+                }
             }
         }
         return $list;
+    }
+
+    /**
+     * Check that a tarball entry resolves to a path inside the extraction directory
+     *
+     * @param string $path
+     * @param string $destination
+     * @return bool
+     */
+    private function isPathInDestination(string $path, string $destination): bool
+    {
+        $normalizedDestination = rtrim($this->normalizePath($destination), '/');
+        $normalizedPath = $this->normalizePath($path);
+
+        return $normalizedPath === $normalizedDestination
+            || strpos($normalizedPath, $normalizedDestination . '/') === 0;
+    }
+
+    /**
+     * Lexically resolve `.` and `..` segments without touching the filesystem
+     *
+     * @param string $path
+     * @return string
+     */
+    private function normalizePath(string $path): string
+    {
+        $path = str_replace('\\', '/', $path);
+        $isAbsolute = isset($path[0]) && $path[0] === '/';
+        $resolved = [];
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($resolved);
+                continue;
+            }
+            $resolved[] = $segment;
+        }
+
+        return ($isAbsolute ? '/' : '') . implode('/', $resolved);
     }
 
     /**

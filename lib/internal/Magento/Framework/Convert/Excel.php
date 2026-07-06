@@ -162,7 +162,7 @@ class Excel
             if (!is_string($value)) {
                 $value = (string)$value;
             }
-            if (isset($value[0]) && in_array($value[0], ['=', '+', '-'])) {
+            if (isset($value[0]) && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"])) {
                 $value = ' ' . $value;
                 $dataType = 'String';
             }

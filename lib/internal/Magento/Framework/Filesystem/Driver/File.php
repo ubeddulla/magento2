@@ -873,7 +873,7 @@ class File implements DriverInterface
             if (!is_string($value)) {
                 $value = (string)$value;
             }
-            if (isset($value[0]) && in_array($value[0], ['=', '+', '-'])) {
+            if (isset($value[0]) && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"])) {
                 $data[$key] = ' ' . $value;
             }
         }

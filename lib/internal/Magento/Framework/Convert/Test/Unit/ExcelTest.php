@@ -115,6 +115,23 @@ class ExcelTest extends TestCase
     }
 
     /**
+     * Leading formula characters must be neutralized so exported cells are not
+     * evaluated as formulas by spreadsheet applications.
+     *
+     * @return void
+     */
+    public function testConvertNeutralizesFormulaTriggers()
+    {
+        $data = [['@cmd', "\t=1+1", "\r=1+1", '=1+1', '+1', '-1']];
+        $convert = new Excel(new \ArrayIterator($data));
+        $result = $convert->convert();
+
+        $this->assertStringContainsString('<Data ss:Type="String"> @cmd</Data>', $result);
+        $this->assertStringContainsString('<Data ss:Type="String"> ' . "\t" . '=1+1</Data>', $result);
+        $this->assertStringNotContainsString('<Data ss:Type="String">@cmd</Data>', $result);
+    }
+
+    /**
      * Write Data into File
      *
      * @param bool $callback
